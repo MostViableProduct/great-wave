@@ -1,0 +1,46 @@
+{
+  "classifier": {
+    "categories": [
+      {
+        "name": "user_satisfaction",
+        "keywords": ["nps", "satisfaction", "churn", "retention", "csat", "feedback", "complaint", "support_ticket"],
+        "weights": {"churn": 2.0, "nps": 2.0}
+      },
+      {
+        "name": "adoption",
+        "keywords": ["dau", "mau", "activation", "onboarding", "signup", "trial", "first_use"],
+        "weights": {"activation": 2.0}
+      },
+      {
+        "name": "revenue_impact",
+        "keywords": ["revenue", "arpu", "ltv", "conversion", "mrr", "arr", "churn_revenue", "expansion"],
+        "weights": {"churn_revenue": 2.0}
+      },
+      {
+        "name": "engagement",
+        "keywords": ["session", "pageview", "click", "interaction", "time_on_site", "bounce_rate", "feature_use"],
+        "weights": {"feature_use": 1.5}
+      }
+    ],
+    "source_priors": {
+      "mixpanel": {"adoption": 3.0, "engagement": 2.0},
+      "stripe": {"revenue_impact": 3.0},
+      "intercom": {"user_satisfaction": 3.0},
+      "amplitude": {"engagement": 3.0}
+    },
+    "type_to_category": {
+      "payment": "revenue_impact",
+      "survey": "user_satisfaction",
+      "usage": "engagement"
+    }
+  },
+  "health": {
+    "severities": [
+      {"name": "critical_drop", "weight": 0.35, "direction": "negative", "default_alpha": 5.0, "default_beta": 1.0},
+      {"name": "decline", "weight": 0.25, "direction": "negative", "default_alpha": 3.0, "default_beta": 1.0},
+      {"name": "stagnation", "weight": 0.15, "direction": "negative", "default_alpha": 2.0, "default_beta": 2.0},
+      {"name": "growth", "weight": 0.25, "direction": "positive", "default_alpha": 1.0, "default_beta": 3.0}
+    ],
+    "max_entries": 10000
+  }
+}

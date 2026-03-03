@@ -1,0 +1,11 @@
+.git
+.github
+.env
+.env.*
+bin/
+*.test
+*.out
+.idea/
+.vscode/
+.cursor/
+.claude/

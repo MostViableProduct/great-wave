@@ -1,0 +1,136 @@
+classifier:
+  categories:
+    - name: performance
+      keywords:
+        - latency
+        - throughput
+        - p50
+        - p95
+        - p99
+        - slow
+        - timeout
+        - response_time
+        - cpu
+        - memory
+      weights:
+        p99: 2.0
+        p95: 2.0
+        timeout: 2.0
+
+    - name: reliability
+      keywords:
+        - error
+        - failure
+        - crash
+        - panic
+        - exception
+        - unavailable
+        - downtime
+        - outage
+        - 5xx
+      weights:
+        outage: 2.0
+        crash: 2.0
+        panic: 2.0
+
+    - name: security
+      keywords:
+        - auth
+        - authentication
+        - authorization
+        - permission
+        - forbidden
+        - "401"
+        - "403"
+        - vulnerability
+        - cve
+      weights:
+        cve: 2.0
+        vulnerability: 2.0
+
+    - name: deployment
+      keywords:
+        - deploy
+        - release
+        - rollout
+        - rollback
+        - build
+        - ci
+        - cd
+        - pipeline
+        - container
+      weights:
+        deploy: 2.0
+        rollback: 2.0
+
+    - name: analytics
+      keywords:
+        - metric
+        - count
+        - aggregation
+        - funnel
+        - conversion
+        - retention
+        - engagement
+        - revenue
+      weights:
+        event: 0.5
+        metric: 0.5
+
+  source_priors:
+    sentry:
+      reliability: 3.0
+    prometheus:
+      performance: 3.0
+    datadog:
+      performance: 2.0
+      reliability: 1.5
+    pagerduty:
+      reliability: 3.0
+
+  type_to_category:
+    metric: performance
+    error: reliability
+    deploy: deployment
+    audit: security
+
+gate:
+  agreement_threshold: 0.85
+  uncertainty_max: 0.15
+  heuristic_confidence: 0.3
+  hierarchical_min_obs: 5
+  max_entries: 10000
+  shadow_mode: false
+
+health:
+  severities:
+    - name: critical
+      weight: 0.40
+      direction: negative
+      default_alpha: 5.0
+      default_beta: 1.0
+    - name: regression
+      weight: 0.25
+      direction: negative
+      default_alpha: 5.0
+      default_beta: 1.0
+    - name: warning
+      weight: 0.15
+      direction: negative
+      default_alpha: 3.0
+      default_beta: 1.0
+    - name: improvement
+      weight: 0.20
+      direction: positive
+      default_alpha: 1.0
+      default_beta: 3.0
+  max_entries: 50000
+
+keywords:
+  min_confidence: 0.7
+  min_observations: 10
+  max_promoted: 200
+  max_extracted: 5
+
+max_vector_results: 5
+llm_min_confidence: 0.3

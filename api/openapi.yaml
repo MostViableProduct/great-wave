@@ -1,0 +1,311 @@
+openapi: 3.0.3
+info:
+  title: Contextual Compiler API
+  description: >
+    Cascade classification, Bayesian gating, health scoring, and keyword learning
+    for product signal routing.
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:8200
+    description: Local development
+
+paths:
+  /health:
+    get:
+      summary: Liveness probe
+      operationId: getHealth
+      responses:
+        "200":
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+
+  /metrics:
+    get:
+      summary: Prometheus metrics
+      operationId: getMetrics
+      responses:
+        "200":
+          description: Prometheus text exposition format
+          content:
+            text/plain:
+              schema:
+                type: string
+
+  /v1/classify:
+    post:
+      summary: Classify signal content
+      operationId: classify
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ClassifyRequest"
+      responses:
+        "200":
+          description: Classification result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClassifyResult"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "422":
+          description: Unprocessable content
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /v1/classify/signal:
+    post:
+      summary: Classify by flattening a JSON payload
+      operationId: classifySignal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ClassifySignalRequest"
+      responses:
+        "200":
+          description: Classification result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClassifyResult"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "422":
+          description: Unprocessable content
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /v1/health/{tenant_id}/{entity_id}:
+    get:
+      summary: Get entity health score
+      operationId: getEntityHealth
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: entity_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Health score
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResult"
+        "400":
+          description: Missing path parameters
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /v1/health/{tenant_id}/{entity_id}/events:
+    post:
+      summary: Record health-affecting event
+      operationId: recordHealthEvent
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: entity_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RecordHealthEventRequest"
+      responses:
+        "200":
+          description: Event recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatusResponse"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /v1/keywords/promote:
+    post:
+      summary: Promote high-confidence learned keywords
+      operationId: promoteKeywords
+      responses:
+        "200":
+          description: Promotion result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  promoted:
+                    type: integer
+        "500":
+          description: Internal error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /v1/state/flush:
+    post:
+      summary: Persist state to storage adapters
+      operationId: flushState
+      responses:
+        "200":
+          description: State flushed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatusResponse"
+        "500":
+          description: Internal error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+components:
+  schemas:
+    ClassifyRequest:
+      type: object
+      required: [type, content]
+      properties:
+        tenant_id:
+          type: string
+        source:
+          type: string
+        type:
+          type: string
+        content:
+          type: string
+        payload:
+          type: object
+
+    ClassifySignalRequest:
+      type: object
+      required: [type, payload]
+      properties:
+        tenant_id:
+          type: string
+        source:
+          type: string
+        type:
+          type: string
+        payload:
+          type: object
+
+    ClassifyResult:
+      type: object
+      properties:
+        category:
+          type: string
+        relevance_score:
+          type: number
+          format: double
+        classification_source:
+          type: string
+          enum: [heuristic, heuristic_gated, llm]
+        confidence:
+          type: number
+          format: double
+        signal_class:
+          type: string
+          enum: [METRIC, TREND, ANOMALY, SEMANTIC]
+        related_entities:
+          type: array
+          items:
+            type: string
+
+    HealthResult:
+      type: object
+      properties:
+        entity_id:
+          type: string
+        score:
+          type: number
+          format: double
+        confidence_interval_lower:
+          type: number
+          format: double
+        confidence_interval_upper:
+          type: number
+          format: double
+
+    RecordHealthEventRequest:
+      type: object
+      required: [severity]
+      properties:
+        severity:
+          type: string
+        category:
+          type: string
+        confidence:
+          type: number
+          format: double
+
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+        dependencies:
+          type: object
+          properties:
+            llm:
+              type: string
+              enum: [connected, disabled]
+            vector:
+              type: string
+              enum: [connected, disabled]
+            events:
+              type: string
+              enum: [connected, disabled]
+            storage:
+              type: string
+              enum: [connected, disabled]
+
+    StatusResponse:
+      type: object
+      properties:
+        status:
+          type: string
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
