@@ -243,6 +243,85 @@ func TestKeywordStore(t *testing.T) {
 	}
 }
 
+func TestWeakenKeyword(t *testing.T) {
+	db := testDB(t)
+	store := New(db)
+	if err := store.EnsureSchema(); err != nil {
+		t.Fatalf("EnsureSchema: %v", err)
+	}
+
+	// Upsert a keyword with 15 observations
+	for i := 0; i < 15; i++ {
+		if err := store.UpsertKeyword("latency_spike", "performance"); err != nil {
+			t.Fatalf("UpsertKeyword iteration %d: %v", i, err)
+		}
+	}
+
+	// Promote it first
+	promoted, err := store.PromoteKeywords(0.5, 10)
+	if err != nil {
+		t.Fatalf("PromoteKeywords: %v", err)
+	}
+	if len(promoted) != 1 {
+		t.Fatalf("expected 1 promoted, got %d", len(promoted))
+	}
+
+	// Weaken the keyword 6 times — drops observations from 15 to 9
+	for i := 0; i < 6; i++ {
+		if err := store.WeakenKeyword("latency_spike"); err != nil {
+			t.Fatalf("WeakenKeyword iteration %d: %v", i, err)
+		}
+	}
+
+	// Demote with threshold that the keyword no longer meets
+	if err := store.DemoteKeywords(0.5, 10); err != nil {
+		t.Fatalf("DemoteKeywords: %v", err)
+	}
+
+	// Should be demoted now (observations < 10)
+	loaded, err := store.LoadPromotedKeywords(100)
+	if err != nil {
+		t.Fatalf("LoadPromotedKeywords after weaken: %v", err)
+	}
+	if len(loaded) != 0 {
+		t.Errorf("expected 0 promoted after weakening, got %d", len(loaded))
+	}
+
+	// Weaken a non-existent keyword — should not error
+	if err := store.WeakenKeyword("nonexistent_keyword"); err != nil {
+		t.Fatalf("WeakenKeyword on missing keyword: %v", err)
+	}
+}
+
+func TestWeakenKeyword_ClampsAtZero(t *testing.T) {
+	db := testDB(t)
+	store := New(db)
+	if err := store.EnsureSchema(); err != nil {
+		t.Fatalf("EnsureSchema: %v", err)
+	}
+
+	// Upsert once (1 observation)
+	if err := store.UpsertKeyword("rare_word", "performance"); err != nil {
+		t.Fatalf("UpsertKeyword: %v", err)
+	}
+
+	// Weaken 5 times — should clamp at 0, not go negative
+	for i := 0; i < 5; i++ {
+		if err := store.WeakenKeyword("rare_word"); err != nil {
+			t.Fatalf("WeakenKeyword iteration %d: %v", i, err)
+		}
+	}
+
+	// Keyword should still exist but with 0 observations — won't promote
+	promoted, err := store.PromoteKeywords(0.0, 1)
+	if err != nil {
+		t.Fatalf("PromoteKeywords: %v", err)
+	}
+	if len(promoted) != 0 {
+		t.Errorf("expected 0 promoted after clamping, got %d", len(promoted))
+	}
+}
+
 func TestKeywordStore_MultipleCategories(t *testing.T) {
 	db := testDB(t)
 	store := New(db)

@@ -277,6 +277,33 @@ func (s *Store) LoadPromotedKeywords(limit int) ([]classifier.LearnedKeyword, er
 	return keywords, rows.Err()
 }
 
+// WeakenKeyword decrements the observation count for a keyword, clamping at zero.
+func (s *Store) WeakenKeyword(keyword string) error {
+	_, err := s.db.Exec(`
+		UPDATE compiler_learned_keywords
+		SET total_observations = MAX(0, total_observations - 1),
+		    positive_observations = MAX(0, positive_observations - 1),
+		    confidence = CASE
+		        WHEN MAX(0, total_observations - 1) = 0 THEN 0.0
+		        ELSE CAST(MAX(0, positive_observations - 1) AS REAL) /
+		             CAST(MAX(0, total_observations - 1) AS REAL)
+		    END,
+		    weight = CASE
+		        WHEN MAX(0, total_observations - 1) = 0 THEN 1.0
+		        WHEN CAST(MAX(0, positive_observations - 1) AS REAL) /
+		             CAST(MAX(0, total_observations - 1) AS REAL) >= 0.7
+		        THEN 2.0
+		        ELSE 1.0
+		    END,
+		    updated_at = datetime('now')
+		WHERE keyword = ?
+	`, keyword)
+	if err != nil {
+		return fmt.Errorf("weaken keyword: %w", err)
+	}
+	return nil
+}
+
 // --- helpers ---
 
 func encodePriors(priors map[string][2]float64) ([]byte, error) {

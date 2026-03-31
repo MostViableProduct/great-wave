@@ -283,6 +283,58 @@ func TestPromoteKeywordsEndpoint(t *testing.T) {
 	}
 }
 
+func TestWeakenKeywordsEndpoint(t *testing.T) {
+	h := NewHandler(testCompiler())
+	mux := http.NewServeMux()
+	h.RegisterRoutes(mux)
+
+	body := `{"keywords":["latency_spike","timeout_error"]}`
+	req := httptest.NewRequest("POST", "/v1/keywords/weaken", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("Expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp map[string]interface{}
+	json.NewDecoder(w.Body).Decode(&resp)
+	if resp["weakened"] != float64(2) {
+		t.Errorf("Expected weakened=2, got %v", resp["weakened"])
+	}
+}
+
+func TestWeakenKeywordsEndpoint_EmptyKeywords(t *testing.T) {
+	h := NewHandler(testCompiler())
+	mux := http.NewServeMux()
+	h.RegisterRoutes(mux)
+
+	body := `{"keywords":[]}`
+	req := httptest.NewRequest("POST", "/v1/keywords/weaken", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("Expected 400, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestWeakenKeywordsEndpoint_InvalidBody(t *testing.T) {
+	h := NewHandler(testCompiler())
+	mux := http.NewServeMux()
+	h.RegisterRoutes(mux)
+
+	req := httptest.NewRequest("POST", "/v1/keywords/weaken", strings.NewReader("not json"))
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("Expected 400, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
 func TestFlushStateEndpoint(t *testing.T) {
 	h := NewHandler(testCompiler())
 	mux := http.NewServeMux()

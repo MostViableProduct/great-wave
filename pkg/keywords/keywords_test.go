@@ -59,6 +59,13 @@ func (m *memKeywordStore) DemoteKeywords(minConfidence float64, minObservations 
 	return nil
 }
 
+func (m *memKeywordStore) WeakenKeyword(keyword string) error {
+	if m.err != nil {
+		return m.err
+	}
+	return nil
+}
+
 func (m *memKeywordStore) LoadPromotedKeywords(limit int) ([]classifier.LearnedKeyword, error) {
 	if m.err != nil {
 		return nil, m.err

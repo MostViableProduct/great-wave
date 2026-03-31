@@ -1,7 +1,10 @@
 // Package api provides HTTP handlers for the contextual compiler REST API.
 //
 // All handlers operate on a *compiler.Compiler instance and expose the
-// cascade classification, health scoring, and keyword promotion endpoints.
+// cascade classification, health scoring, keyword promotion, and keyword
+// weakening endpoints.
+//
+//   - POST /v1/keywords/weaken - weaken (record false positive for) learned keywords
 package api
 
 import (
@@ -59,6 +62,7 @@ func (h *Handler) RegisterProtectedRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /v1/health/{tenant_id}/{entity_id}", h.handleEntityHealth)
 	mux.HandleFunc("POST /v1/health/{tenant_id}/{entity_id}/events", h.handleRecordHealthEvent)
 	mux.HandleFunc("POST /v1/keywords/promote", h.handlePromoteKeywords)
+	mux.HandleFunc("POST /v1/keywords/weaken", h.handleWeakenKeywords)
 	mux.HandleFunc("POST /v1/state/flush", h.handleFlushState)
 	if h.metrics != nil {
 		mux.HandleFunc("GET /metrics", h.metrics.handleMetrics)
@@ -261,6 +265,23 @@ func (h *Handler) handlePromoteKeywords(w http.ResponseWriter, r *http.Request) 
 		h.metrics.KeywordsPromoted.Add(int64(count))
 	}
 	writeJSON(w, http.StatusOK, map[string]interface{}{"promoted": count})
+}
+
+func (h *Handler) handleWeakenKeywords(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
+	var req struct {
+		Keywords []string `json:"keywords"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || len(req.Keywords) == 0 {
+		writeError(w, http.StatusBadRequest, "invalid request: keywords array required")
+		return
+	}
+	if err := h.compiler.RecordFalsePositives(req.Keywords); err != nil {
+		log.Printf("api: weaken keywords error: %v", err)
+		writeError(w, http.StatusInternalServerError, "keyword weakening failed")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]interface{}{"weakened": len(req.Keywords)})
 }
 
 func (h *Handler) handleFlushState(w http.ResponseWriter, r *http.Request) {

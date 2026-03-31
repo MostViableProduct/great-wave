@@ -216,6 +216,19 @@ func (c *Compiler) PromoteKeywords() (int, error) {
 	return count, nil
 }
 
+// RecordFalsePositives weakens the given keywords by decrementing their
+// observation counts. This records a negative signal from dismissed review
+// findings, making the keywords more likely to be demoted in the next
+// promotion cycle.
+func (c *Compiler) RecordFalsePositives(keywords []string) error {
+	for _, kw := range keywords {
+		if err := c.learner.WeakenKeyword(kw); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // LoadState loads persisted state (gate entries, health priors, promoted keywords)
 // from the storage adapters. Call this once at startup.
 func (c *Compiler) LoadState() error {

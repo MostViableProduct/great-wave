@@ -17,6 +17,7 @@ type KeywordStore interface {
 	PromoteKeywords(minConfidence float64, minObservations int) ([]classifier.LearnedKeyword, error)
 	DemoteKeywords(minConfidence float64, minObservations int) error
 	LoadPromotedKeywords(limit int) ([]classifier.LearnedKeyword, error)
+	WeakenKeyword(keyword string) error
 }
 
 // Config holds keyword learning configuration.
@@ -157,6 +158,15 @@ func (l *Learner) LoadPromoted() (int, error) {
 
 	l.runtime.Update(keywords)
 	return len(keywords), nil
+}
+
+// WeakenKeyword decrements the observation count for a keyword, recording a
+// false-positive signal that makes the keyword more likely to be demoted.
+func (l *Learner) WeakenKeyword(keyword string) error {
+	if l.store == nil {
+		return nil
+	}
+	return l.store.WeakenKeyword(keyword)
 }
 
 // Tokenize splits content into lowercase tokens on whitespace and punctuation.

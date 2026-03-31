@@ -395,6 +395,22 @@ func TestPromoteKeywords(t *testing.T) {
 	}
 }
 
+func TestRecordFalsePositives(t *testing.T) {
+	c := New(testConfig(), Deps{}, Callbacks{})
+
+	// With nil keyword store, RecordFalsePositives returns nil (no-op)
+	err := c.RecordFalsePositives([]string{"latency_spike", "timeout_error"})
+	if err != nil {
+		t.Fatalf("RecordFalsePositives failed: %v", err)
+	}
+
+	// Empty keywords list should also succeed
+	err = c.RecordFalsePositives(nil)
+	if err != nil {
+		t.Fatalf("RecordFalsePositives(nil) failed: %v", err)
+	}
+}
+
 func TestAccessors(t *testing.T) {
 	c := New(testConfig(), Deps{}, Callbacks{})
 
